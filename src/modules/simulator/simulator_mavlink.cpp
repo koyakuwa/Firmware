@@ -374,7 +374,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			vbatt = (_battery.full_cell_voltage() - (discharge_v * ((now - batt_sim_start) / discharge_interval_us)))  * cellcount;
 
-			float batt_voltage_loaded = _battery.empty_cell_voltage() - 0.05f;
+			float batt_voltage_loaded = _battery.empty_cell_voltage() - 0.15f;
 
 			if (!PX4_ISFINITE(vbatt) || (vbatt < (cellcount * batt_voltage_loaded))) {
 				vbatt = cellcount * batt_voltage_loaded;
