@@ -58,6 +58,7 @@ extern "C" __EXPORT hrt_abstime hrt_reset(void);
 static const uint8_t mavlink_message_lengths[256] = MAVLINK_MESSAGE_LENGTHS;
 static const uint8_t mavlink_message_crcs[256] = MAVLINK_MESSAGE_CRCS;
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
+float throttlex = 0.0f;
 
 #ifdef ENABLE_UART_RC_INPUT
 #ifndef B460800
@@ -89,7 +90,7 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 	bool armed = (_vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED);
 
 	const float pwm_center = (PWM_DEFAULT_MAX + PWM_DEFAULT_MIN) / 2;
-
+  throttlex = 0.0f;
 	/* scale outputs depending on system type */
 	if (_system_type == MAV_TYPE_QUADROTOR ||
 	    _system_type == MAV_TYPE_HEXAROTOR ||
@@ -128,23 +129,23 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 			n = 8;
 			break;
 		}
-
 		for (unsigned i = 0; i < 16; i++) {
 			if (_actuators[index].output[i] > PWM_DEFAULT_MIN / 2) {
 				if (i < n) {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to 0..1 for rotors */
 					msg.controls[i] = (_actuators[index].output[i] - PWM_DEFAULT_MIN) / (PWM_DEFAULT_MAX - PWM_DEFAULT_MIN);
+          throttlex = throttlex + msg.controls[i];
 
 				} else {
 					/* scale PWM out PWM_DEFAULT_MIN..PWM_DEFAULT_MAX us to -1..1 for other channels */
 					msg.controls[i] = (_actuators[index].output[i] - pwm_center) / ((PWM_DEFAULT_MAX - PWM_DEFAULT_MIN) / 2);
 				}
-
 			} else {
 				/* send 0 when disarmed and for disabled channels */
 				msg.controls[i] = 0.0f;
 			}
 		}
+    throttlex = throttlex / n;
 
 	} else {
 		/* fixed wing: scale throttle to 0..1 and other channels to -1..1 */
@@ -369,10 +370,16 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 
 			float vbatt = _battery.full_cell_voltage() ;
 			float ibatt = -1.0f;
+      float throttle = 0.0f;
 
 			float discharge_v = _battery.full_cell_voltage() - _battery.empty_cell_voltage();
 
 			vbatt = (_battery.full_cell_voltage() - (discharge_v * ((now - batt_sim_start) / discharge_interval_us)))  * cellcount;
+      if ( (now - batt_sim_start) > 0.0f ) {
+          ibatt = 0.0f;
+          throttle = throttlex * 2.0f;
+          // throttle = 5.0f * throttle; // 5 times sim
+        }
 
 			float batt_voltage_loaded = _battery.empty_cell_voltage() - 0.15f;
 
@@ -383,7 +390,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			battery_status_s battery_status = {};
 
 			// TODO: don't hard-code throttle.
-			const float throttle = 0.5f;
+			// float throttle = 0.5f;
 			_battery.updateBatteryStatus(now, vbatt, ibatt, true, true, 0, throttle, armed, &battery_status);
 
 			// publish the battery voltage
@@ -521,8 +528,6 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			orb_publish_auto(ORB_ID(vehicle_local_position_groundtruth), &_lpos_pub, &hil_lpos, &hil_lpos_multi,
 					 ORB_PRIO_HIGH);
 		}
-
-
 
 		break;
 	}

@@ -53,6 +53,7 @@ Battery::Battery() :
 	_param_crit_thr(this, "CRIT_THR"),
 	_param_emergency_thr(this, "EMERGEN_THR"),
 	_voltage_filtered_v(-1.0f),
+  _current_est(-1.0f),
 	_current_filtered_a(-1.0f),
 	_discharged_mah(0.0f),
 	_remaining_voltage(1.0f),
@@ -92,6 +93,7 @@ Battery::updateBatteryStatus(hrt_abstime timestamp, float voltage_v, float curre
 	reset(battery_status);
 	battery_status->timestamp = timestamp;
 	filterVoltage(voltage_v);
+  estCurrent(current_a, throttle_normalized);
 	filterCurrent(current_a);
 	sumDischarged(timestamp, current_a);
 	estimateRemaining(voltage_v, current_a, throttle_normalized, armed);
@@ -102,7 +104,8 @@ Battery::updateBatteryStatus(hrt_abstime timestamp, float voltage_v, float curre
 		battery_status->voltage_v = voltage_v;
 		battery_status->voltage_filtered_v = _voltage_filtered_v;
 		battery_status->scale = _scale;
-		battery_status->current_a = current_a;
+		// battery_status->current_a = current_a;
+    battery_status->current_a = _current_est;
 		battery_status->current_filtered_a = _current_filtered_a;
 		battery_status->discharged_mah = _discharged_mah;
 		battery_status->warning = _warning;
@@ -128,15 +131,114 @@ Battery::filterVoltage(float voltage_v)
 	}
 }
 
+float Battery::SOC2OCV(float soc){
+    // soc2OCV soc-OCV“Á«ƒ‚ƒfƒ‹
+    // soc-OCV“Á«‚ÌŠÈˆÕƒ‚ƒfƒ‹
+    // ŒW”‚Ìİ’è
+    float ocv;
+    // soc ¨0%‚ÅŒvZ®‚ª”­U‚·‚é‚Ì‚Å
+    // soc < 2% ‚¨‚æ‚Ñsoc>98%‚Å‚ÍüŒ`ŠO‘}‚ÉØ‚è‘Ö‚¦‚é
+    if (soc>98) {
+        ocv = dmodel(soc)*(soc-98.0f) + model(98.0f);
+    }
+    if(soc<2){
+        ocv = dmodel(soc)*(soc-2.0f) + model(2.0f);
+    }
+    else{
+        ocv = model(soc);
+    }
+    return ocv;
+}
+
+float Battery::dSOC2OCV(float soc){
+    // soc2OCV soc-OCV“Á«ƒ‚ƒfƒ‹
+    // soc-OCV“Á«‚ÌŠÈˆÕƒ‚ƒfƒ‹
+    // ŒW”‚Ìİ’è
+    float docv;
+    // soc ¨0%‚ÅŒvZ®‚ª”­U‚·‚é‚Ì‚Å
+    // soc < 2% ‚¨‚æ‚Ñsoc>98%‚Å‚ÍüŒ`ŠO‘}‚ÉØ‚è‘Ö‚¦‚é
+    if (soc>98.0f) {
+        docv = dmodel(98.0f);
+    }
+    if(soc<2.0f){
+        docv = dmodel(2.0f);
+    }
+    else{
+        docv = dmodel(soc);
+    }
+    return docv;
+}
+
+float Battery::model(float x){
+    float ans;
+    float K1 = -0.9267, K2 = -0.0146, K3 = 0.1400, K4 = -1.6944;
+    float E0 = 2.5632;
+    float xx = x / 100.0f;
+    ans = E0 + ( K1 * logf(xx) ) + ( K2 * logf(1.0f-(xx)) ) - ( K3/xx ) - ( K4 * xx );
+    return ans;
+}
+
+
+float Battery::OCV2SOC(float ocv)
+{
+    // newton method
+    float eps = 1.0e-2;
+    int max = 1000;
+    int i;
+    float a,newa;
+    float soc_temp = 50.0f;
+    //a = 100 * _remaining_voltage;
+    a = 75;
+    for (i = 1; i < max; i++){
+      newa=a-((model(a)-ocv)/dmodel(a));
+      if(fabsf(newa-a)<eps)
+        break;
+      a=newa;
+      if(i==max-1) {
+        newa = soc_temp;
+        break;
+      }
+    }
+    soc_temp = newa;
+    // printf("‰ğ‚Ì’l‚Í %e\nÅ¬’l‚Í %e\nû‘©‚·‚é‚Ì‚É %d ‰ñ‚©‚©‚è‚Ü‚µ‚½B\n",newa,f(newa),count);
+    return newa;
+}
+
+float Battery::dmodel(float p)
+{
+    float ans;
+    float K1 = 0.237f, K2 = -0.0516f, K3 = 1.05e-3, K4= 0.183f;
+    ans = (K1*100.0f/p) - (K2*100.0f/(100.0f-p)) + (100.0f*K3/(p*p)) - (K4/100.0f);
+    return ans;
+}
+
+
+void
+Battery::estCurrent(float current_a, float throttle_normalized)
+{
+  if (throttle_normalized > 0.0f ){
+    float wp_a = 9.78696f;
+    float wp_b = -5.22771f;
+    float wp_c = 2.66362f;
+    float wp_d = 0.164048f;
+    float x = throttle_normalized;
+    _current_est = wp_a*x*x*x + wp_b*x*x + wp_c*x +  wp_d;
+  } else {
+    _current_est = 0.0f;
+  }
+  _current_est = 4.0f * _current_est;
+}
+
+
 void
 Battery::filterCurrent(float current_a)
 {
 	if (_current_filtered_a < 0.0f) {
-		_current_filtered_a = current_a;
+		_current_filtered_a = _current_est;
 	}
 
 	// ADC poll is at 100Hz, this will perform a low pass over approx 500ms
-	const float filtered_next = _current_filtered_a * 0.98f + current_a * 0.02f;
+	const float filtered_next = _current_filtered_a * 0.98f + _current_est * 0.02f;
 
 	if (PX4_ISFINITE(filtered_next)) {
 		_current_filtered_a = filtered_next;
@@ -148,7 +250,7 @@ void
 Battery::sumDischarged(hrt_abstime timestamp, float current_a)
 {
 	// Not a valid measurement
-	if (current_a < 0.0f) {
+	if (_current_est < 0.0f) {
 		// Because the measurement was invalid we need to stop integration
 		// and re-initialize with the next valid measurement
 		_last_timestamp = 0;
@@ -157,9 +259,8 @@ Battery::sumDischarged(hrt_abstime timestamp, float current_a)
 
 	// Ignore first update because we don't know dT.
 	if (_last_timestamp != 0) {
-		_discharged_mah += current_a * ((float)(timestamp - _last_timestamp)) / 1e3f / 3600.0f;
+		_discharged_mah += _current_est * ((float)(timestamp - _last_timestamp)) / 1e3f / 3600.0f;
 	}
-
 	_last_timestamp = timestamp;
 }
 
@@ -195,6 +296,9 @@ Battery::estimateRemaining(float voltage_v, float current_a, float throttle_norm
 	}
 
 	// remaining battery capacity based on used current integrated time
+  if (!armed) {
+    _discharged_mah =  _param_capacity.get() * (100.0f - OCV2SOC(voltage_v/_param_n_cells.get()) ) / 100.0f;
+  }
 	const float rcap = 1.0f - _discharged_mah / _param_capacity.get();
 	const float rcap_filt = _remaining_capacity * 0.99f + rcap * 0.01f;
 
@@ -213,7 +317,8 @@ Battery::estimateRemaining(float voltage_v, float current_a, float throttle_norm
 	if (_param_capacity.get() > 0.0f) {
 		// if battery capacity is known, use discharged current for estimate,
 		// but don't show more than voltage estimate
-		_remaining = fminf(_remaining_voltage, _remaining_capacity);
+		// _remaining = fminf(_remaining_voltage, _remaining_capacity);
+    _remaining = _remaining_capacity;
 
 	} else {
 		// else use voltage

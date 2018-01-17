@@ -97,8 +97,14 @@ public:
 
 private:
 	void filterVoltage(float voltage_v);
+  void estCurrent(float current_a, float throttle_normalized);
 	void filterCurrent(float current_a);
 	void sumDischarged(hrt_abstime timestamp, float current_a);
+  float SOC2OCV(float soc);
+  float dSOC2OCV(float soc);
+  float model(float x);
+  float OCV2SOC(float ocv);
+  float dmodel(float p);
 	void estimateRemaining(float voltage_v, float current_a, float throttle_normalized, bool armed);
 	void determineWarning(bool connected);
 	void computeScale();
@@ -114,6 +120,7 @@ private:
 	control::BlockParamFloat _param_emergency_thr;
 
 	float _voltage_filtered_v;
+  float _current_est;
 	float _current_filtered_a;
 	float _discharged_mah;
 	float _remaining_voltage;		///< normalized battery charge level remaining based on voltage

@@ -2381,11 +2381,20 @@ int commander_thread_main(int argc, char *argv[])
 				   !low_battery_voltage_actions_done) {
 					low_battery_voltage_actions_done = true;
 					if (armed.armed) {
-						mavlink_log_critical(&mavlink_log_pub, "LOW BATTERY, RETURN TO LAND ADVISED");
+						if (low_bat_action == 2) {
+              if (TRANSITION_DENIED != main_state_transition(&status, commander_state_s::MAIN_STATE_AUTO_LAND, main_state_prev, &status_flags, &internal_state)) {
+                warning_action_on = true;
+                mavlink_log_emergency(&mavlink_log_pub, "CRITICAL BATTERY, LANDING AT CURRENT POSITION");
+
+              } else {
+                mavlink_log_emergency(&mavlink_log_pub, "CRITICAL BATTERY, LANDING FAILED");
+              }
+            } else {
+              mavlink_log_critical(&mavlink_log_pub, "LOW BATTERY, RETURN TO LAND ADVISED");
+            }
 					} else {
 						mavlink_log_critical(&mavlink_log_pub, "LOW BATTERY, TAKEOFF DISCOURAGED");
 					}
-
 					status_changed = true;
 				} else if (!status_flags.usb_connected &&
 					   battery.warning == battery_status_s::BATTERY_WARNING_CRITICAL &&
