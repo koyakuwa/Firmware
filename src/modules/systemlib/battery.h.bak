@@ -96,7 +96,7 @@ public:
                            bool armed, battery_status_s *status);
 private:
 	void filterVoltage(float voltage_v);
-  void MBES_EKF(hrt_abstime timestamp, float voltage_v, float current_a);
+  void MBES_EKF(float voltage_v, float current_a);
   void estCurrent(float current_a, float throttle_normalized);
   void estCurrentQ(float current_a, float throttle_normalized, float mot[4]);
 	void filterCurrent(float current_a);
@@ -123,44 +123,37 @@ private:
 	float _voltage_filtered_v;
   float _current_est;
 	float _current_filtered_a;
+  float _current_a_m;
 	float _discharged_mah;
 	float _remaining_voltage;		///< normalized battery charge level remaining based on voltage
 	float _remaining_capacity;		///< normalized battery charge level remaining based on capacity
 	float _remaining;			///< normalized battery charge level, selected based on config param
-  float _remaining_error;
 	float _scale;
 	uint8_t _warning;
 	hrt_abstime _last_timestamp;
 
   // MBES variables
-  float _mbes_u;
-  float _mbes_um;
-  float _mbes_y;
-  matrix::Matrix<float, 4, 1> _mbes_xhat;
-  matrix::Matrix<float,4, 1> _mbes_xhatm;
-  matrix::Matrix<float,1, 1> _mbes_yhat;
-  matrix::Matrix<float,1, 1> _mbes_yhatm;
+  math::Matrix<4, 1> _mbes_xhat;
+  math::Matrix<4, 1> _mbes_xhatm;
+  math::Matrix<1, 1> _mbes_yhat;
+  math::Matrix<1, 1> _mbes_yhatm;
   float _mbes_th[4];
   float _mbes_Ts;
   float _mbes_SOC0, _mbes_FCC, _mbes_R0, _mbes_Rd, _mbes_Cd;
   float _mbes_aR0, _mbes_aRd, _mbes_aCd;
-  matrix::Matrix<float,4, 4> _mbes_Q;
-  matrix::Matrix<float,4, 4> _mbes_P;
+  math::Matrix<4, 4> _mbes_Q;
+  math::Matrix<4, 4> _mbes_P;
   float _mbes_R;
-  matrix::Matrix<float,4, 1> _mbes_G;
-  matrix::Matrix<float,4, 4> _mbes_Pm;
-  matrix::Matrix<float,1, 4> _mbes_C;
-  matrix::Matrix<float,4, 4> _mbes_A;
-  matrix::Matrix<float,4, 4> _mbes_A0;
-  matrix::Matrix<float,4, 1> _mbes_B0;
-  matrix::Matrix<float,4, 4> _mbes_Ad;
+  math::Matrix<4, 1> _mbes_G;
+  math::Matrix<4, 4> _mbes_Pm;
+  math::Matrix<1, 4> _mbes_C;
+  math::Matrix<4, 4> _mbes_A;
+  math::Matrix<4, 4> _mbes_A0;
+  math::Matrix<4, 1> _mbes_B0;
+  math::Matrix<4, 4> Ad;
   float _mbes_Rl[4], _mbes_Cl[4];
-  matrix::Matrix<float,1, 4> _mbes_tomato;
-  matrix::Matrix<float,4, 4> _mbes_cheeze;
-  matrix::Matrix<float,1, 1> _mbes_pasta;
-  matrix::Matrix<float,1, 1> _mbes_basil;
-  int _mbes_initial_set = 0;
-  int _mbes_flag;
-  float _mbes_dt;
-  hrt_abstime _mbes_tm;
+  math::Matrix<1, 4> _mbes_tomato;
+  math::Matrix<4, 4> _mbes_cheeze;
+  math::Matrix<1, 1> _mbes_pasta;
+  math::Matrix<1, 1> _mbes_basil;
 };

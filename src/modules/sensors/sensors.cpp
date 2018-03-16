@@ -78,6 +78,7 @@
 
 #include <uORB/uORB.h>
 #include <uORB/topics/actuator_controls.h>
+#include <uORB/topics/actuator_outputs.h>
 #include <uORB/topics/vehicle_control_mode.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/battery_status.h>
@@ -556,12 +557,17 @@ Sensors::adc_poll(struct sensor_combined_s &raw)
 					}
 
 					actuator_controls_s ctrl;
+          actuator_outputs_s output;
+          float motor_out[4];
+          for (int i = 0; i < 4; i++){
+            motor_out[i] = output.output[i];
+          }
 					orb_copy(ORB_ID(actuator_controls_0), _actuator_ctrl_0_sub, &ctrl);
 
 					_battery[b].updateBatteryStatus(t, bat_voltage_v[b], bat_current_a[b],
-									connected, selected_source == b, b,
-									ctrl.control[actuator_controls_s::INDEX_THROTTLE],
-									_armed,  &_battery_status[b]);
+                                          connected, selected_source == b, b,
+                                          ctrl.control[actuator_controls_s::INDEX_THROTTLE], motor_out,
+                                          _armed,  &_battery_status[b]);
 					int instance;
 					orb_publish_auto(ORB_ID(battery_status), &_battery_pub[b], &_battery_status[b], &instance, ORB_PRIO_DEFAULT);
 				}

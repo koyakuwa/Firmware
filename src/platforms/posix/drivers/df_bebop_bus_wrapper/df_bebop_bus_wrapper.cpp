@@ -92,6 +92,10 @@ public:
 
 	/// Capture the last throttle value for the battey computation
 	void set_last_throttle(float throttle) {_last_throttle = throttle;};
+  void set_last_mot(float motor_out[4]) {
+    for (int i =0; i < 4; i++){
+      _motor_out[i] = motor_out[i];
+    }};
 
 private:
 	orb_advert_t _battery_topic;
@@ -100,6 +104,7 @@ private:
 	Battery _battery;
 	bool _armed;
 	float _last_throttle;
+  float _motor_out[4];
 
 	int _battery_orb_class_instance;
 
@@ -202,7 +207,7 @@ int DfBebopBusWrapper::_publish(struct bebop_state_data &data)
 
 	// TODO Check if this is the right way for the Bebop
 	// We don't have current measurements
-	_battery.updateBatteryStatus(timestamp, data.battery_voltage_v, 0.0f, true, true, 0, _last_throttle, _armed,
+	_battery.updateBatteryStatus(timestamp, data.battery_voltage_v, 0.0f, true, true, 0, _last_throttle, _motor_out, _armed,
 				     &battery_report);
 
 	esc_status_s esc_status = {};
@@ -388,7 +393,6 @@ void task_main(int argc, char *argv[])
 			     i++) {
 				_outputs.output[i] = NAN;
 			}
-
 			// Check if the outputs are in range and rescale
 			for (size_t i = 0; i < _outputs.noutputs; ++i) {
 				if (i < _outputs.noutputs &&
@@ -414,9 +418,8 @@ void task_main(int argc, char *argv[])
 			motor_out[1] = _outputs.output[0];
 			motor_out[2] = _outputs.output[3];
 			motor_out[3] = _outputs.output[1];
-
 			g_dev->set_esc_speeds(motor_out);
-
+      g_dev->set_last_mot(motor_out);
 			if (_outputs_pub != nullptr) {
 				orb_publish(ORB_ID(actuator_outputs), _outputs_pub, &_outputs);
 

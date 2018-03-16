@@ -412,10 +412,11 @@ Syslink::handle_message(syslink_message_t *msg)
 		int powered = flags & 2;
 
 		float vbat; //, iset;
+    float motor_out[4];
 		memcpy(&vbat, &msg->data[1], sizeof(float));
 		//memcpy(&iset, &msg->data[5], sizeof(float));
 
-		_battery.updateBatteryStatus(t, vbat, -1, true, true, 0, 0, false, &_battery_status);
+		_battery.updateBatteryStatus(t, vbat, -1, motor_out, true, true, 0, 0, false, &_battery_status);
 
 
 		// Update battery charge state

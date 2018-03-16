@@ -573,7 +573,7 @@ protected:
 			bat_msg.type = MAV_BATTERY_TYPE_LIPO;
 			bat_msg.current_consumed = (battery_status.connected) ? battery_status.discharged_mah : -1;
 			bat_msg.energy_consumed = -1;
-			bat_msg.current_battery = (battery_status.connected) ? battery_status.current_filtered_a * 100 : -1;
+			bat_msg.current_battery = (battery_status.connected) ? battery_status.current_filtered_a * 100.0f : -1;
 			bat_msg.battery_remaining = (battery_status.connected) ? battery_status.remaining * 100.0f : -1;
 			bat_msg.temperature = INT16_MAX;
 

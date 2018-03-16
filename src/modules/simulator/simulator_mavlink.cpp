@@ -59,6 +59,7 @@ static const uint8_t mavlink_message_lengths[256] = MAVLINK_MESSAGE_LENGTHS;
 static const uint8_t mavlink_message_crcs[256] = MAVLINK_MESSAGE_CRCS;
 static const float mg2ms2 = CONSTANTS_ONE_G / 1000.0f;
 float throttlex = 0.0f;
+float motor_out[4];
 
 #ifdef ENABLE_UART_RC_INPUT
 #ifndef B460800
@@ -145,6 +146,9 @@ void Simulator::pack_actuator_message(mavlink_hil_actuator_controls_t &msg, unsi
 				msg.controls[i] = 0.0f;
 			}
 		}
+    for (int i =0; i<4; i++){
+      motor_out[i] = msg.controls[i];
+    }
     throttlex = throttlex / n;
 
 	} else {
@@ -377,7 +381,7 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			vbatt = (_battery.full_cell_voltage() - (discharge_v * ((now - batt_sim_start) / discharge_interval_us)))  * cellcount;
       if ( (now - batt_sim_start) > 0.0f ) {
           ibatt = 0.0f;
-          throttle = throttlex * 2.0f;
+          throttle = throttlex;
           // throttle = 5.0f * throttle; // 5 times sim
         }
 
@@ -388,10 +392,10 @@ void Simulator::handle_message(mavlink_message_t *msg, bool publish)
 			}
 
 			battery_status_s battery_status = {};
-
 			// TODO: don't hard-code throttle.
 			// float throttle = 0.5f;
-			_battery.updateBatteryStatus(now, vbatt, ibatt, true, true, 0, throttle, armed, &battery_status);
+			// _battery.updateBatteryStatus(now, vbatt, ibatt, true, true, 0, throttle, armed, &battery_status);
+      _battery.updateBatteryStatus(now, vbatt, ibatt, true, true, 0, throttle, motor_out, armed, &battery_status);
 
 			// publish the battery voltage
 			int batt_multi;

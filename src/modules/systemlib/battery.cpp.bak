@@ -59,7 +59,6 @@ Battery::Battery() :
 	_remaining_voltage(1.0f),
 	_remaining_capacity(1.0f),
 	_remaining(1.0f),
-  _remaining_error(0.0f),
 	_scale(1.0f),
 	_warning(battery_status_s::BATTERY_WARNING_NONE),
 	_last_timestamp(0)
@@ -78,7 +77,6 @@ Battery::reset(battery_status_s *battery_status)
 	memset(battery_status, 0, sizeof(*battery_status));
 	battery_status->current_a = -1.0f;
 	battery_status->remaining = 1.0f;
-  battery_status->remaining_error = 0.0f;
 	battery_status->scale = 1.0f;
 	battery_status->cell_count = _param_n_cells.get();
 	// TODO: check if it is sane to reset warning to NONE
@@ -99,7 +97,6 @@ Battery::updateBatteryStatus(hrt_abstime timestamp, float voltage_v, float curre
   estCurrentQ(current_a, throttle_normalized, motor_out);
 	filterCurrent(current_a);
 	sumDischarged(timestamp, current_a);
-  MBES_EKF(timestamp, voltage_v, current_a);
 	estimateRemaining(voltage_v, current_a, throttle_normalized, armed);
 	determineWarning(connected);
 	computeScale();
@@ -114,7 +111,6 @@ Battery::updateBatteryStatus(hrt_abstime timestamp, float voltage_v, float curre
 		battery_status->discharged_mah = _discharged_mah;
 		battery_status->warning = _warning;
 		battery_status->remaining = _remaining;
-    battery_status->remaining_error = _remaining_error;
 		battery_status->connected = connected;
 		battery_status->system_source = selected_source;
 		battery_status->priority = priority;
@@ -137,107 +133,16 @@ Battery::filterVoltage(float voltage_v)
 }
 
 void
-Battery::MBES_EKF(hrt_abstime timestamp, float voltage_v, float current_a)
+Battery::MBES_EKF(float voltage_v, float current_a)
 {
-  if (_current_est < 0.0f) {
-		_mbes_tm = 0;
-		return;
-	}
-	if (_mbes_tm != 0) {
-		_mbes_dt += ((float)(timestamp - _mbes_tm)) / 1e6f;
-	}
-	_mbes_tm = timestamp;
-  if (_mbes_dt > 0.5f){
-    _mbes_flag = 1;
-    _mbes_dt = 0.0f;
-  }
-  _mbes_u = -1.0f * _current_est;
-  _mbes_y = voltage_v/_param_n_cells.get();
-  if (_mbes_initial_set == 0 ) {
-    _mbes_SOC0 = OCV2SOC(voltage_v/_param_n_cells.get());
-    _mbes_FCC = 2700.0f * 3.6f;
-    // Bat0
-    // _mbes_aR0 = -7.64525398282730;
-    // _mbes_aRd = -2.94719087016744;
-    // _mbes_aCd = 6.53765269854994;
-    // Bat1
-    // _mbes_aR0 = -8.5686f;
-    // _mbes_aRd = -3.4914f;
-    // _mbes_aCd = 6.9440;
-    // Bat2
-    // _mbes_aR0 = -8.5804f;
-    // _mbes_aRd = -3.7237f;
-    // _mbes_aCd = 6.880f;
-    // Bat3
-    // _mbes_aR0 = -8.6085f;
-    // _mbes_aRd = -3.8372f;
-    // _mbes_aCd = 6.9238f;
-    // Bat1x
-    _mbes_aR0 = -8.5457f;
-    _mbes_aRd = -3.3752f;
-    _mbes_aCd = 6.1933f;
-    // Bat2x
-    // _mbes_aR0 = -8.5566f;
-    // _mbes_aRd = -3.7631f;
-    // _mbes_aCd = 7.1208f;
-    // Bat3x
-    // _mbes_aR0 = -8.5879f;
-    // _mbes_aRd = -3.8373f;
-    // _mbes_aCd = 6.9985f;
-
-    _mbes_R0 = exp(_mbes_aR0);
-    _mbes_Rd = exp(_mbes_aRd);
-    _mbes_Cd = exp(_mbes_aCd);
-    _mbes_Ts = 0.5f;
-    _mbes_th[0] = _mbes_R0;
-    _mbes_th[1] = _mbes_Rd;
-    _mbes_th[2] = _mbes_Cd;
-    _mbes_th[3] = _mbes_FCC;
-    _mbes_A(0,0) = 0.0f;
-    _mbes_A0(0,0) = 1.0f;
-    _mbes_B0(0,0) = 100.0f*_mbes_Ts/_mbes_th[3];
-    _mbes_C(0,0) = 0.0f;
-    for (int i = 1; i < 4; i++) {
-      _mbes_Rl[i] = 8*_mbes_th[1]/(2*i-1)/(2*i-1)/M_PI_F/M_PI_F;
-      _mbes_Cl[i] = _mbes_th[2]/2;
-      _mbes_A(i,i) = -1.0f / ( _mbes_Rl[i]*_mbes_Cl[i] );
-      _mbes_A0(i,i) = 1.0f + _mbes_Ts * _mbes_A(i,i);
-      _mbes_B0(i,0) = _mbes_Ts/_mbes_Cl[i];
-      _mbes_C(0,i) = 1.0f;
-    }
-    _mbes_Ad = (_mbes_A*_mbes_Ts);
-    // initial setting of kalman fileter
-    _mbes_Q(0,0) = 0.01f * _mbes_Ts * _mbes_Ts;
-    for (int i = 1; i < 4; i++) {
-      _mbes_Q(i,i) = 1.0e-6f;
-    }
-    for (int i = 0; i < 4; i++) {
-      _mbes_Ad(i,i) = exp(_mbes_Ad(i,i));
-    }
-    _mbes_R=0.075f;
-    _mbes_xhat(0,0) = _mbes_SOC0;
-    _mbes_P(0,0) = 1.0e2f;
-    _mbes_P(1,1) = 1.0e-4f;
-    _mbes_P(2,2) = 1.0e-4f;
-    _mbes_P(3,3) = 1.0e-4f;
-    _mbes_initial_set = 1;
-    _mbes_tomato = matrix::ones<float, 1, 4>();
-    _mbes_pasta = matrix::ones<float, 1, 1>();
-    _mbes_cheeze = matrix::eye<float, 4>();
-    _mbes_tomato(0,0) = 0.0f;
-  } else if (_mbes_flag == 1){
-    _mbes_flag = 0;
-    _mbes_xhatm = (_mbes_A0*_mbes_xhat) + (_mbes_B0*_mbes_um);
-    _mbes_yhatm =  (SOC2OCV(_mbes_xhatm(0,0)) * _mbes_pasta ) + (_mbes_tomato*_mbes_xhatm) + ((_mbes_th[0]*_mbes_u)*_mbes_pasta);
-    _mbes_Pm = _mbes_Ad * _mbes_P * _mbes_Ad.T() + _mbes_Q;
-    _mbes_C(0,0) = dSOC2OCV(_mbes_xhatm(0,0));
-    _mbes_basil = _mbes_C * _mbes_Pm * _mbes_C.T();
-    _mbes_G = ( _mbes_Pm * _mbes_C.T() ) / (  _mbes_basil(0,0) + _mbes_R );
-    _mbes_xhat = _mbes_xhatm + ( _mbes_G * ( ( _mbes_y *_mbes_pasta ) - _mbes_yhatm) );
-    _mbes_P = ( _mbes_cheeze - (_mbes_G*_mbes_C) ) * _mbes_Pm;
-    // _mbes_xhat = _mbes_xhat + (_mbes_u * _mbes_Ts / _mbes_FCC * 100.0f);
-  }
-  _mbes_um = _mbes_u;
+  _mbes_xhatm = (_mbes_A0*_mbes_xhat) + (_mbes_B0*_current_a_m);
+  _mbes_yhatm =  (SOC2OCV(_mbes_xhatm(0,0)) * _mbes_pasta) + (_mbes_tomato*_mbes_xhatm) + (_mbes_th[0]*current_a*_mbes_pasta);
+  _mbes_Pm = _mbes_Ad * _mbes_P * _mbes_Ad.transpose() + _mbes_Q;
+  _mbes_C(0,0) = dSOC2OCV(_mbes_xhatm(0,0));
+  _mbes_basil = _mbes_C * _mbes_Pm * _mbes_C.transpose();
+  _mbes_G = ( _mbes_Pm * _mbes_C.transpose() ) / (  _mbes_basil(0,0) + _mbes_R );
+  _mbes_xhat = _mbes_xhatm + ( _mbes_G * ( ( (voltage_v/_param_n_cells.get())*_mbes_pasta ) - _mbes_yhatm) );
+  _mbes_P = ( _mbes_cheeze - (_mbes_G*_mbes_C) ) * _mbes_Pm;
 }
 
 
@@ -392,6 +297,8 @@ Battery::estCurrentQ(float current_a, float throttle_normalized, float mot[4])
   }
 }
 
+
+
 void
 Battery::filterCurrent(float current_a)
 {
@@ -405,7 +312,6 @@ Battery::filterCurrent(float current_a)
 	if (PX4_ISFINITE(filtered_next)) {
 		_current_filtered_a = filtered_next;
 	}
-  // _current_filtered_a = _mbes_P(0,0);
 }
 
 
@@ -482,8 +388,6 @@ Battery::estimateRemaining(float voltage_v, float current_a, float throttle_norm
 		// but don't show more than voltage estimate
 		// _remaining = fminf(_remaining_voltage, _remaining_capacity);
     _remaining = _remaining_capacity;
-    // _remaining = _mbes_xhat(0,0)*0.01f;
-    // _remaining_error = _mbes_P(0,0);
 
 	} else {
 		// else use voltage

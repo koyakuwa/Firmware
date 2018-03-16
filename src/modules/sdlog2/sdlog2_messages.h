@@ -292,6 +292,7 @@ struct log_BATT_s {
 	float current_filtered;
 	float discharged;
 	float remaining;
+  float remaining_error;
 	float scale;
 	uint8_t warning;
 };
