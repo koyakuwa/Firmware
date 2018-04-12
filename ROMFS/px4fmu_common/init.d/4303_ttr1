@@ -12,7 +12,7 @@ sh /etc/init.d/rc.vtol_defaults
 
 if [ $AUTOCNF == yes ]
 then
-    param set VT_MOT_COUNT 8
+    param set VT_MOT_COUNT 4
     param set VT_IDLE_PWM_MC 1080
     param set VT_TYPE 0
     param set VT_ELEV_MC_LOCK 1
