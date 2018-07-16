@@ -15,12 +15,12 @@ then
     param set VT_MOT_COUNT 4
     param set VT_IDLE_PWM_MC 1080
     param set VT_TYPE 0
-    param set VT_ELEV_MC_LOCK 1
+    param set VT_ELEV_MC_LOCK 0
 fi
 
 # set VT_MOT_COUNT 8
 # set MIXER quad_x_vtol
-set MIXER ttr1
+# set MIXER ttr1
 # set PWM_OUT 1234
 set PWM_MAX 2000
 set PWM_RATE 400

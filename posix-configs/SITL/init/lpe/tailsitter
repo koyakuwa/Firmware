@@ -1,7 +1,7 @@
 uorb start
 param load
 dataman start
-param set BAT_N_CELLS 10
+param set BAT_N_CELLS 3
 param set CAL_ACC0_ID 1376264
 param set CAL_ACC0_XOFF 0.01
 param set CAL_ACC0_XSCALE 1.01
@@ -22,39 +22,23 @@ param set EKF2_GBIAS_INIT 0.01
 param set EKF2_HGT_MODE 0
 param set EKF2_MAG_TYPE 1
 param set MAV_TYPE 20
-# param set MAV_TYPE 2
-param set MC_PITCH_P 4
+param set MC_PITCH_P 6
 param set MC_PITCHRATE_P 0.2
-param set MC_ROLL_P 4
+param set MC_ROLL_P 6
 param set MC_ROLLRATE_P 0.2
-param set MC_PITCHRATE_MAX 220.0 # 220.0
-param set MC_ROLLRATE_MAX 220.0 # 220.0
-
-# position control gain
-param set MPC_XY_P 0.8 #0.15
-param set MPC_XY_VEL_I 0.04 # 0.02
-param set MPC_XY_VEL_P 0.15 # 0.05
-param set MPC_XY_VEL_D 0.04 # 0.005
-param set MPC_XY_VEL_MAX 15.0
-param set MPC_Z_P 1.0 # 1.0
-param set MPC_Z_VEL_I 0.15 # 0.15
-param set MPC_Z_VEL_P 0.8 # 0.8
-param set MPC_Z_VEL_D 0.0 # 0.0
-
+param set MPC_XY_P 0.15
+param set MPC_XY_VEL_D 0.005
+param set MPC_XY_VEL_P 0.05
+param set MPC_Z_VEL_I 0.15
+param set MPC_Z_VEL_P 0.8
 param set NAV_DLL_ACT 2
 param set SENS_BOARD_ROT 0
 param set SENS_BOARD_X_OFF 0.000001
 param set SENS_DPRES_OFF 0.001
-# param set SYS_AUTOSTART 4010
-param set SYS_AUTOSTART 4303
+param set SYS_AUTOSTART 4010
 param set SYS_MC_EST_GROUP 2
 param set SYS_RESTART_TYPE 2
-param set VT_MOT_COUNT 4
 param set VT_TYPE 0
-param set MIS_TAKEOFF_ALT 15.0
-param set FW_AIRSPD_MIN 10
-param set FW_AIRSPD_TRIM 20
-param set FW_AIRSPD_MAX 40
 replay tryapplyparams
 simulator start -s
 tone_alarm start
@@ -68,7 +52,6 @@ pwm_out_sim mode_pwm
 sensors start
 commander start
 land_detector start vtol
-# land_detector start multicopter
 navigator start
 ekf2 start
 vtol_att_control start
@@ -76,9 +59,7 @@ mc_pos_control start
 mc_att_control start
 fw_pos_control_l1 start
 fw_att_control start
-# mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_x.main.mix
 mixer load /dev/pwm_output0 ROMFS/px4fmu_common/mixers/quad_x_vtol.main.mix
-# mixer load /dev/pwm_output0 ROMFS/sitl/mixers/standard_vtol_sitl.main.mix
 mavlink start -x -u 14556 -r 2000000
 mavlink start -x -u 14557 -r 2000000 -m onboard -o 14540
 mavlink stream -r 80 -s POSITION_TARGET_LOCAL_NED -u 14556

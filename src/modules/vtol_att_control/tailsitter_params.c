@@ -54,4 +54,4 @@
  * @decimal 3
  * @group VTOL Attitude Control
 
-PARAM_DEFINE_FLOAT(VT_TRANS_P2_DUR, 0.5f);*/
+PARAM_DEFINE_FLOAT(VT_TRANS_P2_DUR, 5.0f);*/

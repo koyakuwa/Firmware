@@ -1,9 +1,9 @@
 uorb start
 param load
 dataman start
-param set BAT_N_CELLS 3
+param set BAT_N_CELLS 10
 param set CAL_ACC0_ID 1376264
-param set CAL_ACC0_XOFF 0.01
+param set CAL_ACC0_XOFF   0.01
 param set CAL_ACC0_XSCALE 1.01
 param set CAL_ACC0_YOFF -0.01
 param set CAL_ACC0_YSCALE 1.01
