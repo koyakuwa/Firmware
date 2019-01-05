@@ -85,7 +85,7 @@ __EXPORT extern hrt_abstime hrt_absolute_time(void);
 /**
  * Convert a timespec to absolute time.
  */
-__EXPORT extern hrt_abstime ts_to_abstime(struct timespec *ts);
+__EXPORT extern hrt_abstime ts_to_abstime(const struct timespec *ts);
 
 /**
  * Convert absolute time to a timespec.
@@ -191,6 +191,41 @@ __EXPORT extern void	hrt_stop_delay(void);
  */
 __EXPORT extern void	hrt_stop_delay_delta(hrt_abstime delta);
 
+
+__EXPORT extern hrt_abstime hrt_reset(void);
+
+__EXPORT extern hrt_abstime hrt_absolute_time_offset(void);
+
 #endif
 
 __END_DECLS
+
+
+
+#ifdef	__cplusplus
+
+namespace time_literals
+{
+
+// User-defined integer literals for different time units.
+// The base unit is hrt_abstime in microseconds
+
+constexpr hrt_abstime operator "" _s(unsigned long long seconds)
+{
+	return hrt_abstime(seconds * 1000000ULL);
+}
+
+constexpr hrt_abstime operator "" _ms(unsigned long long seconds)
+{
+	return hrt_abstime(seconds * 1000ULL);
+}
+
+constexpr hrt_abstime operator "" _us(unsigned long long seconds)
+{
+	return hrt_abstime(seconds);
+}
+
+} /* namespace time_literals */
+
+
+#endif /* __cplusplus */

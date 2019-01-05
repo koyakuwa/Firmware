@@ -76,7 +76,7 @@ CameraFeedback::~CameraFeedback()
 
 		do {
 			/* wait 20ms */
-			usleep(20000);
+			px4_usleep(20000);
 
 			/* if we have given up, kill it */
 			if (++i > 50) {
@@ -92,8 +92,6 @@ CameraFeedback::~CameraFeedback()
 int
 CameraFeedback::start()
 {
-
-	ASSERT(_main_task == -1);
 
 	/* start the task */
 	_main_task = px4_task_spawn_cmd("camera_feedback",
@@ -222,15 +220,19 @@ CameraFeedback::task_main()
 
 	}
 
-	PX4_INFO("Exiting.");
+	orb_unsubscribe(_trigger_sub);
+	orb_unsubscribe(_gpos_sub);
+	orb_unsubscribe(_att_sub);
+
 	_main_task = -1;
 
 }
 
-void
+int
 CameraFeedback::task_main_trampoline(int argc, char *argv[])
 {
 	camera_feedback::g_camera_feedback->task_main();
+	return 0;
 }
 
 static int usage()

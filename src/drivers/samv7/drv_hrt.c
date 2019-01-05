@@ -62,6 +62,7 @@
 
 #include <board_config.h>
 #include <drivers/drv_hrt.h>
+#include <lib/perf/perf_counter.h>
 
 #include "chip.h"
 #include "up_internal.h"
@@ -191,13 +192,6 @@ static uint16_t			latency_baseline;
 
 /* timer count at interrupt (for latency purposes) */
 static uint16_t			latency_actual;
-
-/* latency histogram */
-#define LATENCY_BUCKET_COUNT 8
-__EXPORT const uint16_t latency_bucket_count = LATENCY_BUCKET_COUNT;
-__EXPORT const uint16_t	latency_buckets[LATENCY_BUCKET_COUNT] = { 1, 2, 5, 10, 20, 50, 100, 1000 };
-__EXPORT uint32_t		latency_counters[LATENCY_BUCKET_COUNT + 1];
-
 
 /* timer-specific functions */
 static void		hrt_tim_init(void);
@@ -347,7 +341,7 @@ hrt_tim_init(void)
 	ret = sam_tc_clockselect(frequency, &cmr, &actual);
 
 	if (ret < 0) {
-		PX4_PANIC("ERROR: Failed no divisor can be found (%d),for timer channel %d\n", ret, HRT_TIMER_CHANNEL);
+		printf("ERROR: Failed no divisor can be found (%d),for timer channel %d\n", ret, HRT_TIMER_CHANNEL);
 		return;
 	}
 
@@ -386,7 +380,7 @@ hrt_tim_init(void)
 	hrt_tch = sam_tc_allocate(HRT_TIMER_CHANNEL, cmr);
 
 	if (!hrt_tch) {
-		PX4_PANIC("ERROR: Failed to allocate timer channel %d\n", HRT_TIMER_CHANNEL);
+		printf("ERROR: Failed to allocate timer channel %d\n", HRT_TIMER_CHANNEL);
 		return;
 	}
 
@@ -660,7 +654,7 @@ hrt_absolute_time(void)
  * Convert a timespec to absolute time
  */
 hrt_abstime
-ts_to_abstime(struct timespec *ts)
+ts_to_abstime(const struct timespec *ts)
 {
 	hrt_abstime	result;
 

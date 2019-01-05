@@ -41,6 +41,10 @@
 
 #include <px4_log.h>
 
+#if defined(__PX4_NUTTX) && !defined(CONFIG_ARCH_MATH_H)
+#error CONFIG_ARCH_MATH_H is required to use math definitions and functions
+#endif
+
 /****************************************************************************
  * Defines for all platforms.
  ****************************************************************************/
@@ -94,7 +98,7 @@
 #define PX4_MAIN_FUNCTION(_prefix) int _prefix##_task_main(int argc, char *argv[])
 
 /* Parameter handle datatype */
-#include <systemlib/param/param.h>
+#include <parameters/param.h>
 typedef param_t px4_param_t;
 
 /* Get value of parameter by name */
@@ -111,8 +115,8 @@ typedef param_t px4_param_t;
  ****************************************************************************/
 
 #define PX4_ROOTFSDIR ""
+#define PX4_STORAGEDIR PX4_ROOTFSDIR "/fs/microsd"
 #define _PX4_IOC(x,y) _IOC(x,y)
-#define px4_statfs_buf_f_bavail_t int
 
 // mode for open with O_CREAT
 #define PX4_O_MODE_777 0777
@@ -152,7 +156,9 @@ using ::isfinite;
  ****************************************************************************/
 
 // Flag is meaningless on Linux
+#ifndef O_BINARY
 #define O_BINARY 0
+#endif
 
 // mode for open with O_CREAT
 #define PX4_O_MODE_777 (S_IRWXU | S_IRWXG | S_IRWXO)
@@ -165,16 +171,14 @@ using ::isfinite;
 /* FIXME - Used to satisfy build */
 #define getreg32(a)    (*(volatile uint32_t *)(a))
 
-#define USEC_PER_TICK (1000000UL/PX4_TICKS_PER_SEC)
+#define USEC_PER_TICK (1000000/PX4_TICKS_PER_SEC)
 #define USEC2TICK(x) (((x)+(USEC_PER_TICK/2))/USEC_PER_TICK)
-
-#define px4_statfs_buf_f_bavail_t unsigned long
 
 #ifdef __PX4_QURT
 
 // QURT specific
 #  include "dspal_math.h"
-#  define PX4_ROOTFSDIR ""
+#  define PX4_ROOTFSDIR "."
 #  define PX4_TICKS_PER_SEC 1000L
 #  define SIOCDEVPRIVATE 999999
 
@@ -197,10 +201,12 @@ __END_DECLS
 #  elif defined(__PX4_POSIX_BEBOP)
 #    define PX4_ROOTFSDIR "/data/ftp/internal_000"
 #  else
-#    define PX4_ROOTFSDIR "rootfs"
+#    define PX4_ROOTFSDIR "."
 #  endif
 
 #endif // __PX4_QURT
+
+#define PX4_STORAGEDIR PX4_ROOTFSDIR
 #endif // __PX4_POSIX
 
 #if defined(__PX4_ROS) || defined(__PX4_POSIX)
